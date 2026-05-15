@@ -1,6 +1,13 @@
 ---
 # стек мониторинга в docker compose
 
+# форматируем диск только если на нём ещё нет fs (если с фс, то данные не трем)
+- name: создать ext4 на диске mon_data если пусто
+  community.general.filesystem:
+    fstype: ext4
+    dev: /dev/disk/by-id/google-mon-data
+  become: true
+
 - name: примонтировать диск под данные мониторинга
   ansible.posix.mount:
     path: /data/mon
@@ -9,7 +16,6 @@
     opts: defaults
     state: mounted
   become: true
-  ignore_errors: true
 
 - name: каталоги стека
   ansible.builtin.file:

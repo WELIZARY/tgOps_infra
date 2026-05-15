@@ -1,6 +1,13 @@
 ---
 # jenkins controller в docker, данные на отдельном диске
 
+# форматируем диск только если на нём ещё нет fs (модуль идемпотентен, данные не трёт)
+- name: создать ext4 на диске jenkins_data если пусто
+  community.general.filesystem:
+    fstype: ext4
+    dev: /dev/disk/by-id/google-jenkins-data
+  become: true
+
 - name: примонтировать диск jenkins_home
   ansible.posix.mount:
     path: /data/jenkins
@@ -9,7 +16,6 @@
     opts: defaults
     state: mounted
   become: true
-  ignore_errors: true
 
 - name: каталог jenkins
   ansible.builtin.file:
@@ -20,12 +26,23 @@
     mode: "0755"
   become: true
 
-- name: 
+# terraform и kubectl в дефолтных репо debian отсутствуют, нужны свои репо
+# для cd достаточно gcloud, остальное опционально
+- name: apt репозиторий google cloud sdk
+  ansible.builtin.shell: |
+    install -m 0755 -d /usr/share/keyrings
+    curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
+  args:
+    creates: /etc/apt/sources.list.d/google-cloud-sdk.list
+  become: true
+
+- name: тулинг на хосте (gcloud, jq)
   ansible.builtin.apt:
-    name: [google-cloud-cli, terraform, ansible, kubectl, jq]
+    name: [google-cloud-cli, jq, terraform, ansible, kubectl]
+    update_cache: true
     state: present
   become: true
-  ignore_errors: true 
 
 - name: compose jenkins
   ansible.builtin.template:

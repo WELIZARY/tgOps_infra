@@ -1,0 +1,6 @@
+---
+# только jenkins vm
+- name: jenkins vm
+  hosts: tag_jenkins
+  become: true
+  roles: [docker, base, jenkins]

@@ -1,0 +1,6 @@
+---
+# только bot vm
+- name: bot vm
+  hosts: tag_bot
+  become: true
+  roles: [docker, base, bot]

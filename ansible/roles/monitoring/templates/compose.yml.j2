@@ -1,0 +1,43 @@
+# prometheus loki grafana alertmanager blackbox
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - /data/mon/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /data/mon/prometheus:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    ports: ["9090:9090"]
+
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    volumes:
+      - /data/mon/loki.yml:/etc/loki/config.yml:ro
+      - /data/mon/loki:/loki
+    command: -config.file=/etc/loki/config.yml
+    ports: ["3100:3100"]
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    restart: unless-stopped
+    volumes:
+      - /data/mon/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports: ["9093:9093"]
+
+  blackbox:
+    image: prom/blackbox-exporter:latest
+    restart: unless-stopped
+    ports: ["9115:9115"]
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password | default('admin') }}"
+    volumes:
+      - /data/mon/grafana:/var/lib/grafana
+      - /data/mon/grafana-datasources.yml:/etc/grafana/provisioning/datasources/ds.yml:ro
+    ports: ["3000:3000"]

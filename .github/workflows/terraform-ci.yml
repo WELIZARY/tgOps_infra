@@ -1,0 +1,48 @@
+# инфра ci для tgops_infra, это не деплой а только проверки на pr
+# деплой инфры делает человек через make
+name: terraform-ci
+
+on:
+  pull_request:
+    paths: ["terraform/**", ".github/workflows/terraform-ci.yml"]
+  push:
+    branches: ["main"]
+    paths: ["terraform/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: terraform fmt check
+        run: terraform fmt -check -recursive terraform
+
+      - name: terraform validate по слоям без backend
+        run: |
+          set -e
+          for d in terraform/bootstrap terraform/envs/prod/*/; do
+            ls "$d"/*.tf >/dev/null 2>&1 || { echo "skip $d"; continue; }
+            echo "::group::validate $d"
+            terraform -chdir="$d" init -backend=false -input=false >/dev/null
+            terraform -chdir="$d" validate
+            echo "::endgroup::"
+          done
+
+      - name: tflint
+        uses: terraform-linters/setup-tflint@v4
+      - run: tflint --recursive --chdir=terraform || true
+
+      - name: checkov, чекаем на секреты и ключи
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          soft_fail: true

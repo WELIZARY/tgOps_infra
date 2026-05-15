@@ -1,0 +1,40 @@
+---
+# базовая настройка любой vm, плюс агенты мониторинга
+- name: обновить пакеты
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+  become: true
+
+- name: базовые утилиты
+  ansible.builtin.apt:
+    name: [jq, htop, ca-certificates, unzip]
+    state: present
+  become: true
+
+- name: каталог под агенты
+  ansible.builtin.file:
+    path: /opt/agents
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: compose с node_exporter и promtail
+  ansible.builtin.template:
+    src: agents-compose.yml.j2
+    dest: /opt/agents/docker-compose.yml
+    mode: "0644"
+  become: true
+
+- name: конфиг promtail
+  ansible.builtin.template:
+    src: promtail.yml.j2
+    dest: /opt/agents/promtail.yml
+    mode: "0644"
+  become: true
+
+- name: поднять агентов
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: /opt/agents
+  become: true

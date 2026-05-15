@@ -1,0 +1,43 @@
+---
+# каркас для бота, сам деплой версий делает jenkins через deploy.sh
+
+- name: каталог бота
+  ansible.builtin.file:
+    path: /opt/tgops
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: локальный реверс прокси webhook
+  ansible.builtin.template:
+    src: caddy-compose.yml.j2
+    dest: /opt/tgops/docker-compose.caddy.yml
+    mode: "0644"
+  become: true
+
+- name: апстрим переключает deploy.sh
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /opt/tgops/Caddyfile
+    mode: "0644"
+  become: true
+
+- name: скрипт деплоя
+  ansible.builtin.template:
+    src: deploy.sh.j2
+    dest: /opt/tgops/deploy.sh
+    mode: "0755"
+  become: true
+
+- name: скрипт отката
+  ansible.builtin.template:
+    src: rollback.sh.j2
+    dest: /opt/tgops/rollback.sh
+    mode: "0755"
+  become: true
+
+- name: поднять caddy
+  ansible.builtin.command: docker compose -f docker-compose.caddy.yml up -d
+  args:
+    chdir: /opt/tgops
+  become: true

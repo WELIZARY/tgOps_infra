@@ -1,0 +1,48 @@
+# воспроизводит инстанс с нуля
+jenkins:
+  systemMessage: "tgops cd controller (jcasc)"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "{{ jenkins_admin_user | default('admin') }}"
+          password: "{{ jenkins_admin_password | default('changeme') }}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "https://jenkins.{{ primary_domain | default('tgops.xyz') }}/"
+
+# пайплайны деплоя берём из репо tgOps_infra/pipelines
+jobs:
+  - script: >
+      pipelineJob('deploy-bot') {
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/WELIZARY/tgOps_infra.git') }
+                branch('main')
+              }
+            }
+            scriptPath('pipelines/jenkins/Jenkinsfile.deploy-bot')
+          }
+        }
+      }
+  - script: >
+      pipelineJob('rollback-bot') {
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/WELIZARY/tgOps_infra.git') }
+                branch('main')
+              }
+            }
+            scriptPath('pipelines/jenkins/Jenkinsfile.rollback-bot')
+          }
+        }
+      }

@@ -1,0 +1,39 @@
+// откат бота, быстрый путь переключает caddy на предыдущий цвет
+// если предыдущий контейнер уже удалён, передать TARGET_SHA для redeploy
+pipeline {
+  agent any
+
+  parameters {
+    string(name: 'TARGET_SHA', defaultValue: '', description: 'sha для redeploy, пусто если откат на живой предыдущий цвет')
+  }
+
+  environment {
+    PROJECT  = 'tgops-prod'
+    ZONE     = 'europe-west3-a'
+    BOT_VM   = 'tgops-bot-vm'
+    REGISTRY = 'europe-west3-docker.pkg.dev/tgops-prod/tgops-images'
+  }
+
+  options { timeout(time: 15, unit: 'MINUTES') }
+
+  stages {
+    stage('откат') {
+      steps {
+        sh '''
+          set -e
+          if [ -n "${TARGET_SHA}" ]; then
+            CMD="sudo /opt/tgops/deploy.sh ${REGISTRY}/tgops:${TARGET_SHA}"
+          else
+            CMD="sudo /opt/tgops/rollback.sh"
+          fi
+          gcloud compute ssh "${BOT_VM}" \
+            --project "${PROJECT}" --zone "${ZONE}" --tunnel-through-iap \
+            --command "${CMD}"
+        '''
+      }
+    }
+    stage('smoke') {
+      steps { sh 'curl -fsS https://bot.tgops.xyz/healthz' }
+    }
+  }
+}

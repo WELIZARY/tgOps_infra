@@ -1,0 +1,35 @@
+---
+# полная настройка всех vm, запускать после terraform apply слоёв
+# доступ по ssh через iap
+
+- name: bot vm
+  hosts: tag_bot
+  become: true
+  roles:
+    - docker
+    - base
+    - bot
+
+- name: jenkins vm
+  hosts: tag_jenkins
+  become: true
+  roles:
+    - docker
+    - base
+    - jenkins
+
+- name: monitoring vm
+  hosts: tag_monitoring
+  become: true
+  roles:
+    - docker
+    - base
+    - monitoring
+
+- name: demo nodes
+  hosts: tag_demo
+  become: true
+  roles:
+    - docker
+    - base
+    - nginx

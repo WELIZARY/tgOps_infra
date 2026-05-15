@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+DIR=/opt/tgops
+cd "$DIR"
+BLUE_PORT=18080
+GREEN_PORT=18081
+
+PREV="$(cat .previous_color 2>/dev/null || true)"
+[ -n "$PREV" ] || { echo "нет данных"; exit 1; }
+
+if [ "$PREV" = blue ]; then PORT=$BLUE_PORT; else PORT=$GREEN_PORT; fi
+docker start "tgops-$PREV" 2>/dev/null || { echo "предыдущий контейнер уже удалён, нужен redeploy конкретного sha"; exit 1; }
+
+# текущий активный порт из Caddyfile
+CUR=$(grep -oE ':1808[01]' Caddyfile | head -1 | tr -d ':')
+sed -i "s/:$CUR/:$PORT/" Caddyfile
+docker exec tgops-caddy caddy reload --config /etc/caddy/Caddyfile
+echo "откат на $PREV:$PORT выполнен"

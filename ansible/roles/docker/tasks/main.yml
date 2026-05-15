@@ -1,0 +1,40 @@
+---
+# ставим docker engine и compose плагин
+- name: установить зависимости
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg]
+    update_cache: true
+    state: present
+  become: true
+
+- name: добавить gpg ключ docker
+  ansible.builtin.shell: |
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+  become: true
+
+- name: добавить репозиторий docker
+  ansible.builtin.shell: |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+    > /etc/apt/sources.list.d/docker.list
+  args:
+    creates: /etc/apt/sources.list.d/docker.list
+  become: true
+
+- name: установить docker
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
+    update_cache: true
+    state: present
+  become: true
+
+- name: docker запущен
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+  become: true

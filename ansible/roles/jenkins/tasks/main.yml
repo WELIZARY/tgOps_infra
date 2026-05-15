@@ -1,0 +1,48 @@
+---
+# jenkins controller в docker, данные на отдельном диске
+
+- name: примонтировать диск jenkins_home
+  ansible.posix.mount:
+    path: /data/jenkins
+    src: /dev/disk/by-id/google-jenkins-data
+    fstype: ext4
+    opts: defaults
+    state: mounted
+  become: true
+  ignore_errors: true
+
+- name: каталог jenkins
+  ansible.builtin.file:
+    path: /data/jenkins
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  become: true
+
+- name: 
+  ansible.builtin.apt:
+    name: [google-cloud-cli, terraform, ansible, kubectl, jq]
+    state: present
+  become: true
+  ignore_errors: true 
+
+- name: compose jenkins
+  ansible.builtin.template:
+    src: jenkins-compose.yml.j2
+    dest: /data/jenkins/docker-compose.yml
+    mode: "0644"
+  become: true
+
+- name: jcasc конфиг
+  ansible.builtin.template:
+    src: jenkins.yaml.j2
+    dest: /data/jenkins/jenkins.yaml
+    mode: "0644"
+  become: true
+
+- name: поднять jenkins
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: /data/jenkins
+  become: true

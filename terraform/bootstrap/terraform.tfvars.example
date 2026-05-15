@@ -1,0 +1,12 @@
+# пример конфига
+project_id = "айдишник проекта из gcp"
+region     = "europe-west3"
+
+# !!! напоминание: budget на trial через terraform не создаётся (api ограничен), нужно добавлять руками
+
+github_owner = "WELIZARY"
+github_repos = ["WELIZARY/tgOps", "WELIZARY/tgOps_infra"]
+
+# имена бакетов глобально уникальны в gcs
+state_bucket_name     = "tgops-tfstate-prod"
+db_export_bucket_name = "tgops-db-export-prod"

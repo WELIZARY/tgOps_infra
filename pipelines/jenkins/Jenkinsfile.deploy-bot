@@ -1,0 +1,79 @@
+
+// триггерится вебхуком от github после зелёного ci, делает blue/green на bot vm
+pipeline {
+  agent any
+
+  parameters {
+    string(name: 'IMAGE_SHA', defaultValue: '', description: 'git sha образа из artifact registry')
+    booleanParam(name: 'SKIP_APPROVAL', defaultValue: false, description: 'пропустить ручное подтверждение')
+  }
+
+  environment {
+    PROJECT  = 'tgops-prod'
+    REGION   = 'europe-west3'
+    ZONE     = 'europe-west3-a'
+    BOT_VM   = 'tgops-bot-vm'
+    REGISTRY = 'europe-west3-docker.pkg.dev/tgops-prod/tgops-images'
+  }
+
+  options { timeout(time: 20, unit: 'MINUTES') }
+
+  stages {
+    stage('проверки') {
+      steps {
+        script {
+          if (!params.IMAGE_SHA?.trim()) { error 'не передан IMAGE_SHA' }
+          echo "деплой образа ${env.REGISTRY}/tgops:${params.IMAGE_SHA}"
+        }
+      }
+    }
+
+    stage('подтверждение') {
+      when { expression { return !params.SKIP_APPROVAL } }
+      steps {
+        timeout(time: 10, unit: 'MINUTES') {
+          input message: "выкатить tgops:${params.IMAGE_SHA} в прод?", ok: 'деплой'
+        }
+      }
+    }
+
+    stage('blue/green деплой') {
+      steps {
+        sh '''
+          set -e
+          IMAGE="${REGISTRY}/tgops:${IMAGE_SHA}"
+          # ssh на bot vm через iap, запускаем готовый deploy.sh
+          gcloud compute ssh "${BOT_VM}" \
+            --project "${PROJECT}" --zone "${ZONE}" --tunnel-through-iap \
+            --command "sudo /opt/tgops/deploy.sh ${IMAGE}"
+        '''
+      }
+    }
+
+    stage('post-deploy smoke') {
+      steps {
+        sh 'curl -fsS https://bot.tgops.xyz/healthz'
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "деплой ${params.IMAGE_SHA} ок"
+      // уведомление в telegram через сам бот (секрет в jenkins credentials)
+      sh '''
+        curl -fsS -X POST "https://bot.tgops.xyz/internal/jenkins" \
+          -H "X-Jenkins-Token: $JENKINS_WEBHOOK_SECRET" \
+          -d "status=success&sha=${IMAGE_SHA}" || true
+      '''
+    }
+    failure {
+      echo 'деплой упал, при необходимости запуститЕ job rollback-bot'
+      sh '''
+        curl -fsS -X POST "https://bot.tgops.xyz/internal/jenkins" \
+          -H "X-Jenkins-Token: $JENKINS_WEBHOOK_SECRET" \
+          -d "status=failed&sha=${IMAGE_SHA}" || true
+      '''
+    }
+  }
+}

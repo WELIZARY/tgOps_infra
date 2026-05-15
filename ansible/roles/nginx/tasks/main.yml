@@ -1,0 +1,22 @@
+---
+# простой nginx для demo нод
+- name: установить nginx
+  ansible.builtin.apt:
+    name: nginx
+    update_cache: true
+    state: present
+  become: true
+
+- name: стартовая страница demo
+  ansible.builtin.copy:
+    dest: /var/www/html/index.html
+    content: "tgops demo node {{ inventory_hostname }} ok\n"
+    mode: "0644"
+  become: true
+
+- name: nginx запущен
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
+  become: true

@@ -1,0 +1,12 @@
+# алерты шлём в сам бот на internal endpoint, дальше он уж кидает в telegram
+route:
+  receiver: tgops-bot
+  group_by: [alertname, instance]
+  group_wait: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: tgops-bot
+    webhook_configs:
+      - url: "https://bot.{{ primary_domain | default('tgops.xyz') }}/internal/alert"
+        send_resolved: true

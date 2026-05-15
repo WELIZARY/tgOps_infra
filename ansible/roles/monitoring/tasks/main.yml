@@ -1,0 +1,39 @@
+---
+# стек мониторинга в docker compose
+
+- name: примонтировать диск под данные мониторинга
+  ansible.posix.mount:
+    path: /data/mon
+    src: /dev/disk/by-id/google-mon-data
+    fstype: ext4
+    opts: defaults
+    state: mounted
+  become: true
+  ignore_errors: true
+
+- name: каталоги стека
+  ansible.builtin.file:
+    path: "/data/mon/{{ item }}"
+    state: directory
+    mode: "0777"
+  loop: [prometheus, loki, grafana, alertmanager]
+  become: true
+
+- name: конфиги стека
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/data/mon/{{ item.dst }}"
+    mode: "0644"
+  loop:
+    - { src: compose.yml.j2, dst: docker-compose.yml }
+    - { src: prometheus.yml.j2, dst: prometheus.yml }
+    - { src: alertmanager.yml.j2, dst: alertmanager.yml }
+    - { src: loki.yml.j2, dst: loki.yml }
+    - { src: grafana-ds.yml.j2, dst: grafana-datasources.yml }
+  become: true
+
+- name: поднять стек
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: /data/mon
+  become: true

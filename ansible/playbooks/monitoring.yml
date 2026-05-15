@@ -1,0 +1,6 @@
+---
+# только monitoring vm
+- name: monitoring vm
+  hosts: tag_monitoring
+  become: true
+  roles: [docker, base, monitoring]

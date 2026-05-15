@@ -1,0 +1,15 @@
+# адрес loki берём из переменной loki_url
+server:
+  http_listen_port: 9080
+positions:
+  filename: /tmp/positions.yaml
+clients:
+  - url: "{{ loki_url | default('http://10.10.0.12:3100') }}/loki/api/v1/push"
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: varlogs
+          host: "{{ inventory_hostname }}"
+          __path__: /var/log/*log

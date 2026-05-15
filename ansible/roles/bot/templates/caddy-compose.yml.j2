@@ -1,0 +1,12 @@
+# caddy слушает webhook порт и проксирует
+services:
+  caddy:
+    image: caddy:2
+    container_name: tgops-caddy
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /opt/tgops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+volumes:
+  caddy_data:

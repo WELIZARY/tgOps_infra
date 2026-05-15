@@ -1,0 +1,15 @@
+# запасной статический инвентарь если динамический недоступен
+
+
+[bot]
+tgops-bot-vm ansible_host=10.10.0.10
+
+[jenkins]
+tgops-jenkins-vm ansible_host=10.10.0.11
+
+[monitoring]
+tgops-mon-vm ansible_host=10.10.0.12
+
+[all:vars]
+ansible_user=serezha
+ansible_python_interpreter=/usr/bin/python3

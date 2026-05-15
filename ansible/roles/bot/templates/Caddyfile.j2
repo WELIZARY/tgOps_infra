@@ -1,0 +1,5 @@
+#сюда приходит http на webhook_port
+# upstream правит deploy.sh
+:{{ webhook_port | default(8443) }} {
+	reverse_proxy http://127.0.0.1:{{ active_port | default(18080) }}
+}

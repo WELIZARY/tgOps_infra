@@ -1,0 +1,9 @@
+# доступ ко всем vm идёт через iap туннель (vm приватные, порт 22 наружу закрыт)
+# ansible_host = имя инстанса (из инвентаря), %h в ProxyCommand это имя
+# OSLOGIN_USER экспортируется в среде перед запуском ansible
+ansible_user: "{{ lookup('env', 'OSLOGIN_USER') }}"
+ansible_ssh_private_key_file: "~/.ssh/google_compute_engine"
+ansible_ssh_common_args: >-
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
+  -o ProxyCommand="gcloud compute start-iap-tunnel %h %p --listen-on-stdin --zone=europe-west3-a --project=tgops-prod"

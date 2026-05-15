@@ -52,9 +52,9 @@ variable "jenkins_enable_armor" {
 }
 
 variable "web_image" {
-  description = "образ сайта tgops"
+  description = "образ сайта tgops (собирается из tgOps/web-page)"
   type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello" #временная заглуша до деплоя своей странички
+  default     = "europe-west3-docker.pkg.dev/tgops-prod/tgops-images/web-tgops:v1"
 }
 
 variable "ocpp_bucket_name" {

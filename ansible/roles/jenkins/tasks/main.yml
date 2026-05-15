@@ -26,27 +26,39 @@
     mode: "0755"
   become: true
 
-# gcloud, terraform, kubectl в дефолтных репо debian отсутствуют, добавляем свои
-- name: apt репозитории google cloud sdk, hashicorp, kubernetes
+# gcloud в дефолтных репо debian нет, добавляем только надёжный google репо
+- name: apt репозиторий google cloud sdk
   ansible.builtin.shell: |
     set -e
     install -m 0755 -d /usr/share/keyrings
-    . /etc/os-release
     curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
-    echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/hashicorp.list
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /usr/share/keyrings/kubernetes.gpg
-    echo "deb [signed-by=/usr/share/keyrings/kubernetes.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
   args:
-    creates: /etc/apt/sources.list.d/hashicorp.list
+    creates: /etc/apt/sources.list.d/google-cloud-sdk.list
   become: true
 
-- name: тулинг на хосте (gcloud, terraform, kubectl, ansible, jq)
+- name: тулинг из apt (gcloud, ansible, jq)
   ansible.builtin.apt:
-    name: [google-cloud-cli, terraform, kubectl, ansible, jq]
+    name: [google-cloud-cli, ansible, jq]
     update_cache: true
     state: present
+  become: true
+
+# terraform и kubectl установка из бинарников
+- name: terraform бинарь в /usr/local/bin
+  ansible.builtin.unarchive:
+    src: https://releases.hashicorp.com/terraform/1.10.5/terraform_1.10.5_linux_amd64.zip
+    dest: /usr/local/bin
+    remote_src: true
+    creates: /usr/local/bin/terraform
+    mode: "0755"
+  become: true
+
+- name: kubectl бинарь в /usr/local/bin
+  ansible.builtin.get_url:
+    url: https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
+    dest: /usr/local/bin/kubectl
+    mode: "0755"
   become: true
 
 - name: compose jenkins

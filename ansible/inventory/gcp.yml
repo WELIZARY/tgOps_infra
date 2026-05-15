@@ -8,7 +8,8 @@ zones:
 auth_kind: application
 hostnames:
   - name
+# tags['items'] через скобки: иначе jinja берёт метод dict.items(), а не список тегов
 keyed_groups:
-  - key: tags.items | default([])
+  - key: tags['items'] | default([])
     prefix: tag
     separator: _

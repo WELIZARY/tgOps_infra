@@ -30,6 +30,9 @@ locals {
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
     "roles/compute.viewer",
+    # для деплоя бота: ssh на bot-vm через iap туннель и os login
+    "roles/iap.tunnelResourceAccessor",
+    "roles/compute.osLogin",
   ]
   mon_roles = [
     "roles/monitoring.viewer",

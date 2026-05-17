@@ -1,14 +1,14 @@
 ---
 # jenkins controller в docker, данные на отдельном диске
 
-# форматируем диск только если на нём ещё нет fs (модуль идемпотентен, данные не трёт)
-- name: создать ext4 на диске jenkins_data если пусто
+
+- name: отформатировать диск с данными jenkins в ext4 если он ещё пустой
   community.general.filesystem:
     fstype: ext4
     dev: /dev/disk/by-id/google-jenkins-data
   become: true
 
-- name: примонтировать диск jenkins_home
+- name: примонтировать диск с данными jenkins в /data/jenkins
   ansible.posix.mount:
     path: /data/jenkins
     src: /dev/disk/by-id/google-jenkins-data
@@ -17,7 +17,7 @@
     state: mounted
   become: true
 
-- name: каталог jenkins
+- name: создать каталог /data/jenkins с владельцем uid 1000
   ansible.builtin.file:
     path: /data/jenkins
     state: directory
@@ -26,57 +26,68 @@
     mode: "0755"
   become: true
 
-# gcloud в дефолтных репо debian нет, добавляем только надёжный google репо
-- name: apt репозиторий google cloud sdk
-  ansible.builtin.shell: |
-    set -e
-    install -m 0755 -d /usr/share/keyrings
-    curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
+- name: создать файл подкачки на 2 гб
+  ansible.builtin.command: dd if=/dev/zero of=/swapfile bs=1M count=2048
   args:
-    creates: /etc/apt/sources.list.d/google-cloud-sdk.list
+    creates: /swapfile
   become: true
 
-- name: тулинг из apt (gcloud, ansible, jq)
-  ansible.builtin.apt:
-    name: [google-cloud-cli, ansible, jq]
-    update_cache: true
+- name: выставить права 0600 на файл подкачки
+  ansible.builtin.file:
+    path: /swapfile
+    mode: "0600"
+  become: true
+
+- name: инициализировать swap на файле подкачки
+  ansible.builtin.command: mkswap /swapfile
+  args:
+    creates: /var/cache/.swap_done
+  become: true
+
+- name: включить swap
+  ansible.builtin.shell: swapon /swapfile && touch /var/cache/.swap_done
+  args:
+    creates: /var/cache/.swap_done
+  become: true
+
+- name: добавить swap в /etc/fstab чтобы подключался после перезагрузки
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "/swapfile none swap sw 0 0"
     state: present
   become: true
 
-# terraform и kubectl установка из бинарников
-- name: terraform бинарь в /usr/local/bin
-  ansible.builtin.unarchive:
-    src: https://releases.hashicorp.com/terraform/1.10.5/terraform_1.10.5_linux_amd64.zip
-    dest: /usr/local/bin
-    remote_src: true
-    creates: /usr/local/bin/terraform
-    mode: "0755"
+- name: снизить агрессивность подкачки (vm.swappiness 20)
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "20"
+    state: present
+    reload: true
   become: true
 
-- name: kubectl бинарь в /usr/local/bin
-  ansible.builtin.get_url:
-    url: https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
-    dest: /usr/local/bin/kubectl
-    mode: "0755"
+- name: положить dockerfile кастомного jenkins (с gcloud для пайплайна) на сервер
+  ansible.builtin.template:
+    src: Dockerfile.jenkins.j2
+    dest: /data/jenkins/Dockerfile
+    mode: "0644"
   become: true
 
-- name: compose jenkins
+- name: положить docker-compose jenkins на сервер
   ansible.builtin.template:
     src: jenkins-compose.yml.j2
     dest: /data/jenkins/docker-compose.yml
     mode: "0644"
   become: true
 
-- name: jcasc конфиг
+- name: положить конфиг jenkins configuration as code
   ansible.builtin.template:
     src: jenkins.yaml.j2
     dest: /data/jenkins/jenkins.yaml
     mode: "0644"
   become: true
 
-- name: поднять jenkins
-  ansible.builtin.command: docker compose up -d
+- name: собрать кастомный образ и запустить контейнер jenkins
+  ansible.builtin.command: docker compose up -d --build
   args:
     chdir: /data/jenkins
   become: true

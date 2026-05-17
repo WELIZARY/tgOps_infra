@@ -2,7 +2,10 @@
 # проксируется общим lb на host rule jenkins.домен через порт 8081
 services:
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: /data/jenkins
+      dockerfile: Dockerfile
+    image: tgops-jenkins:local
     container_name: jenkins
     restart: unless-stopped
     user: "1000:1000"

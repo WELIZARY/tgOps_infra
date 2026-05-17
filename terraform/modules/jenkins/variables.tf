@@ -33,7 +33,7 @@ variable "jenkins_sa_email" {
 variable "machine_type" {
   description = "тип машины jenkins"
   type        = string
-  default     = "e2-small"
+  default     = "e2-medium"
 }
 
 variable "allow_ips" {

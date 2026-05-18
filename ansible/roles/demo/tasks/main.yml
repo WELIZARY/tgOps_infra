@@ -1,0 +1,29 @@
+---
+# доступ бота на demo-ноду: пользователь tgops с публичным ключом бота
+# публичный ключ берём из secret manager
+
+- name: пользователь tgops на demo-ноде
+  ansible.builtin.user:
+    name: tgops
+    shell: /bin/bash
+    create_home: true
+    groups: docker
+    append: true
+  become: true
+
+- name: публичный ключ бота в authorized_keys tgops
+  ansible.posix.authorized_key:
+    user: tgops
+    state: present
+    exclusive: true
+    key: "{{ lookup('pipe', 'gcloud secrets versions access latest --secret=tgops-bot-ssh-pub') }}"
+  become: true
+
+# demo-лаб: бот гоняет docker, journalctl и сканеры (полный sudo без пароля)
+- name: sudoers tgops на demo-ноде
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/tgops
+    content: "tgops ALL=(ALL) NOPASSWD: ALL\n"
+    mode: "0440"
+    validate: visudo -cf %s
+  become: true

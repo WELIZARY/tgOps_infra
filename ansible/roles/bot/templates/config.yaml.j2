@@ -39,8 +39,17 @@ ssh:
   connect_timeout: 10s
   command_timeout: 30s
   max_connections_per_host: 3
-  default_key_path: /home/tgops/.ssh/id_ed25519
-  servers: []
+  # приватный ключ монтирует deploy.sh из secret manager
+  default_key_path: /app/bot_ssh_key
+  # demo-ноды берём из инвентаря (группа tag_demo)
+  servers:
+{% for h in groups.get('tag_demo', []) | sort %}
+    - name: {{ h | regex_replace('^tgops-', '') }}
+      host: {{ hostvars[h].networkInterfaces[0].networkIP }}
+      port: 22
+      user: tgops
+      key_name: ''
+{% endfor %}
 
 monitoring:
   interval: 60s

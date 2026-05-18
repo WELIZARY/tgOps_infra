@@ -137,3 +137,41 @@ resource "google_secret_manager_secret_iam_member" "bot_deploy_pub" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.bot.email}"
 }
+
+# отдельная пара ключей, которой бот ходит по ssh на demo-ноды
+resource "tls_private_key" "bot_ssh" {
+  algorithm = "ED25519"
+}
+
+resource "google_secret_manager_secret" "bot_ssh_key" {
+  project   = var.project_id
+  secret_id = "tgops-bot-ssh-key"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "bot_ssh_key" {
+  secret      = google_secret_manager_secret.bot_ssh_key.id
+  secret_data = tls_private_key.bot_ssh.private_key_openssh
+}
+
+resource "google_secret_manager_secret" "bot_ssh_pub" {
+  project   = var.project_id
+  secret_id = "tgops-bot-ssh-pub"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "bot_ssh_pub" {
+  secret      = google_secret_manager_secret.bot_ssh_pub.id
+  secret_data = tls_private_key.bot_ssh.public_key_openssh
+}
+
+resource "google_secret_manager_secret_iam_member" "bot_ssh_key" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.bot_ssh_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.bot.email}"
+}

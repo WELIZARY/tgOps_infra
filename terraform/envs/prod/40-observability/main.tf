@@ -21,4 +21,8 @@ module "demo" {
   project_id       = var.project_id
   zone             = var.zone
   subnet_self_link = data.terraform_remote_state.platform.outputs.subnet_self_link
+  # demo-broken тяжелее остальных, на нём гоняют trivy и stress
+  machine_type_overrides = {
+    "demo-broken" = "e2-medium"
+  }
 }

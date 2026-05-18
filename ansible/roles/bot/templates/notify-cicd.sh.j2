@@ -1,0 +1,26 @@
+#!/bin/bash
+# постит событие деплоя в cicd-вебхук бота, чтобы /pipelines пополнялся сам
+# вызывает jenkins после деплоя через tgdeploy ssh (sudo)
+set -uo pipefail
+
+STATUS="${1:-SUCCESS}"
+BUILD="${2:-0}"
+BRANCH="${3:-main}"
+SHA="${4:-latest}"
+
+DIR=/opt/tgops
+PORT=$(grep -oE ':1808[01]' "$DIR/Caddyfile" | head -1 | tr -d ':')
+if [ "$PORT" = 18080 ]; then C=tgops-blue; else C=tgops-green; fi
+
+if [ "$STATUS" = SUCCESS ]; then GH=success; else GH=failure; fi
+
+docker exec "$C" curl -s -o /dev/null -X POST -H 'Content-Type: application/json' \
+  --data "{\"name\":\"deploy-bot\",\"build\":{\"number\":${BUILD},\"phase\":\"COMPLETED\",\"status\":\"${STATUS}\",\"scm_branch\":\"${BRANCH}\",\"user_id\":\"jenkins\"}}" \
+  http://127.0.0.1:8082/webhook/jenkins || true
+
+docker exec "$C" curl -s -o /dev/null -X POST \
+  -H 'X-GitHub-Event: workflow_run' -H 'Content-Type: application/json' \
+  --data "{\"workflow_run\":{\"id\":$(date +%s),\"head_branch\":\"${BRANCH}\",\"conclusion\":\"${GH}\",\"actor\":{\"login\":\"WELIZARY\"}},\"repository\":{\"full_name\":\"WELIZARY/tgOps\"}}" \
+  http://127.0.0.1:8082/webhook/github || true
+
+echo "cicd-событие отправлено: $STATUS build $BUILD ($SHA)"

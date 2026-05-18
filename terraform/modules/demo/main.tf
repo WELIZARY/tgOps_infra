@@ -4,7 +4,7 @@ resource "google_compute_instance" "node" {
   for_each     = toset(var.nodes)
   project      = var.project_id
   name         = "tgops-${each.value}"
-  machine_type = var.machine_type
+  machine_type = lookup(var.machine_type_overrides, each.value, var.machine_type)
   zone         = var.zone
   tags         = ["demo"]
 

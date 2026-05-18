@@ -34,11 +34,21 @@ docker run -d --name "tgops-$NEW" --restart unless-stopped \
   -p 127.0.0.1:$NEW_PORT:8080 \
   -v /opt/tgops/config.yaml:/app/config.yaml:ro \
   -v /opt/tgops/bot_ssh_key:/app/bot_ssh_key:ro \
+  -v /opt/tgops/playbooks:/app/playbooks:ro \
   -e TGOPS_TELEGRAM_TOKEN="$TG_TOKEN" \
   -e TGOPS_TELEGRAM_WEBHOOK_SECRET="$TG_WH" \
   -e TGOPS_DATABASE_PRIMARY_HOST="$DB_HOST" \
   -e TGOPS_DATABASE_PRIMARY_PASSWORD="$DB_PASS" \
   "$IMAGE"
+
+# образ generic - тулзы для /ansible run и cicd-вебхука и 0600-ключ ставим тут
+# best-effort: если сети нет, бот всё равно живой, недоступен лишь /ansible run
+docker exec -u 0 "tgops-$NEW" sh -c \
+  'command -v ansible-playbook >/dev/null 2>&1 || apk add --no-cache openssh-client ansible-core curl' \
+  >/dev/null 2>&1 || echo "провижн тулз не удался (без сети?), /ansible run будет недоступен"
+docker exec -u 0 "tgops-$NEW" sh -c \
+  'mkdir -p /home/tgops/.ssh && cp /app/bot_ssh_key /home/tgops/.ssh/ansible_key && chmod 600 /home/tgops/.ssh/ansible_key && chown -R tgops /home/tgops/.ssh' \
+  2>/dev/null || true
 
 for i in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:$NEW_PORT$HEALTH_PATH" >/dev/null; then ok=1; break; fi

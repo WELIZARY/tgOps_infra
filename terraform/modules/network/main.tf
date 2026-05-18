@@ -67,6 +67,20 @@ resource "google_compute_firewall" "iap_ssh" {
   }
 }
 
+# iap туннель к ui мониторинга (grafana 3000, prometheus 9090, alertmanager 9093)
+resource "google_compute_firewall" "iap_mon_ui" {
+  project       = var.project_id
+  name          = "fw-allow-iap-mon-ui"
+  network       = google_compute_network.vpc.id
+  direction     = "INGRESS"
+  source_ranges = ["35.235.240.0/20"]
+  target_tags   = ["monitoring"]
+  allow {
+    protocol = "tcp"
+    ports    = ["3000", "9090", "9093"]
+  }
+}
+
 # health check и lb до bot и jenkins
 resource "google_compute_firewall" "lb_health" {
   project       = var.project_id

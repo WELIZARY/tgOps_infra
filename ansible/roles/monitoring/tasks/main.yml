@@ -22,7 +22,17 @@
     path: "/data/mon/{{ item }}"
     state: directory
     mode: "0777"
-  loop: [prometheus, loki, grafana, alertmanager]
+  loop: [prometheus, loki, grafana, alertmanager, dashboards]
+  become: true
+
+- name: дашборды grafana и провайдер (статикой, без шаблона)
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/data/mon/{{ item.dst }}"
+    mode: "0644"
+  loop:
+    - { src: grafana-dashboards.yml, dst: grafana-dashboards.yml }
+    - { src: tgops-overview.json, dst: dashboards/tgops-overview.json }
   become: true
 
 - name: конфиги стека

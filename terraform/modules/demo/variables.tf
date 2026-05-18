@@ -21,7 +21,13 @@ variable "nodes" {
 }
 
 variable "machine_type" {
-  description = "тип машины демо нод"
+  description = "тип машины демо нод по умолчанию"
   type        = string
   default     = "e2-small"
+}
+
+variable "machine_type_overrides" {
+  description = "тип машины для отдельных нод, ключ имя ноды"
+  type        = map(string)
+  default     = {}
 }

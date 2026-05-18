@@ -1,5 +1,5 @@
 # конфиг бота, редактируемый, лежит на bot-vm, монтируется в контейнер
-# секреты тут пустые, они прокидываются через deploy.sh через env 
+# секреты тут пустые, их прокидывает deploy.sh через env
 telegram:
   mode: webhook
   token: ''
@@ -30,10 +30,14 @@ database:
     password: ''
     ssl_mode: disable
 
+# куда слать алерты и уведомления
+notify:
+  chat_id: {{ bot_admin_id | default(3174902) }}
+
 cicd:
   webhook_port: 8082
   webhook_secret: ''
-  notify_chat_id: 0
+  notify_chat_id: {{ bot_admin_id | default(3174902) }}
 
 ssh:
   connect_timeout: 10s
@@ -62,15 +66,33 @@ monitoring:
     disk_warning: 80
     disk_critical: 90
 
-health_checks:
-  interval: 60s
-  timeout: 10s
-  endpoints: []
-
+# реальные домены проекта, у всех managed-серты
 ssl:
   check_interval: 24h
   warn_days: [30, 14, 7, 1]
-  domains: []
+  domains:
+    - {{ primary_domain | default('tgops.xyz') }}
+    - www.{{ primary_domain | default('tgops.xyz') }}
+    - bot.{{ primary_domain | default('tgops.xyz') }}
+    - jenkins.{{ primary_domain | default('tgops.xyz') }}
+    - {{ secondary_domain | default('ocpp.by') }}
+
+health_checks:
+  interval: 60s
+  timeout: 10s
+  endpoints:
+    - name: site
+      url: https://{{ primary_domain | default('tgops.xyz') }}
+      expected_status: 200
+    - name: ocpp
+      url: https://{{ secondary_domain | default('ocpp.by') }}
+      expected_status: 200
+    - name: bot
+      url: https://bot.{{ primary_domain | default('tgops.xyz') }}/healthz
+      expected_status: 200
+    - name: jenkins
+      url: https://jenkins.{{ primary_domain | default('tgops.xyz') }}/login
+      expected_status: 200
 
 logs:
   allowed_services: [nginx, docker, ssh, tgops]
@@ -80,6 +102,40 @@ logs:
 docker:
   host: unix:///var/run/docker.sock
   timeout: 30s
+
+# плейбуки лежат в образе бота (см. deployments/Dockerfile), запуск через /ansible run
+ansible:
+  playbooks_dir: /app/playbooks
+  inventory_path: /app/playbooks/inventory.ini
+  timeout: 5m
+  playbooks:
+    - name: ping
+      file: ping.yml
+      description: проверка связи с серверами
+    - name: uptime
+      file: uptime.yml
+      description: аптайм и загрузка серверов
+
+updates:
+  timeout: 60s
+
+backups:
+  timeout: 30s
+  paths:
+    - name: demo backups
+      path: /var/backups/demo
+      max_age_hours: 48
+
+cron:
+  timeout: 15s
+
+scan:
+  timeout: 5m
+  trivy_image: aquasec/trivy:latest
+
+versions:
+  timeout: 30s
+  packages: []
 
 scheduler:
   timezone: Europe/Moscow

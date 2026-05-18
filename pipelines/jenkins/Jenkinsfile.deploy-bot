@@ -74,10 +74,30 @@ pipeline {
 
   post {
     success {
-      echo "деплой ${params.IMAGE_SHA} ок"
+      sh '''
+        set +e
+        KEY=$(mktemp)
+        trap 'rm -f "$KEY"' EXIT
+        gcloud secrets versions access latest --secret=tgops-deploy-ssh-key > "$KEY"
+        chmod 600 "$KEY"
+        ssh -i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          -o ProxyCommand="gcloud compute start-iap-tunnel ${BOT_VM} 22 --listen-on-stdin --zone=${ZONE} --project=${PROJECT}" \
+          tgdeploy@${BOT_VM} "sudo /opt/tgops/notify-cicd.sh SUCCESS ${BUILD_NUMBER} main ${IMAGE_SHA}" || true
+        echo "деплой ${IMAGE_SHA} ок"
+      '''
     }
     failure {
-      echo 'деплой упал, при необходимости запусти job rollback-bot'
+      sh '''
+        set +e
+        KEY=$(mktemp)
+        trap 'rm -f "$KEY"' EXIT
+        gcloud secrets versions access latest --secret=tgops-deploy-ssh-key > "$KEY"
+        chmod 600 "$KEY"
+        ssh -i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          -o ProxyCommand="gcloud compute start-iap-tunnel ${BOT_VM} 22 --listen-on-stdin --zone=${ZONE} --project=${PROJECT}" \
+          tgdeploy@${BOT_VM} "sudo /opt/tgops/notify-cicd.sh FAILURE ${BUILD_NUMBER} main ${IMAGE_SHA}" || true
+        echo "деплой упал, при необходимости запусти job rollback-bot"
+      '''
     }
   }
 }

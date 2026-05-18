@@ -68,6 +68,37 @@
     mode: "0755"
   become: true
 
+# плейбуки и инвентарь для /ansible run монтируются в контейнер
+- name: каталог плейбуков
+  ansible.builtin.file:
+    path: /opt/tgops/playbooks
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: плейбуки бота
+  ansible.builtin.copy:
+    src: "playbooks/{{ item }}"
+    dest: "/opt/tgops/playbooks/{{ item }}"
+    mode: "0644"
+  loop: [ping.yml, uptime.yml]
+  become: true
+
+- name: инвентарь для плейбуков
+  ansible.builtin.template:
+    src: inventory.ini.j2
+    dest: /opt/tgops/playbooks/inventory.ini
+    mode: "0644"
+  become: true
+
+# postит событие деплоя в cicd-вебхук бота, чтобы /pipelines пополнялся сам
+- name: скрипт уведомления cicd
+  ansible.builtin.template:
+    src: notify-cicd.sh.j2
+    dest: /opt/tgops/notify-cicd.sh
+    mode: "0755"
+  become: true
+
 # отдельный пользователь под деплой из jenkins (ssh ключ jenkins, без os login)
 - name: пользователь tgdeploy
   ansible.builtin.user:
@@ -90,10 +121,10 @@
     exclusive: true
   become: true
 
-- name: sudoers tgdeploy только на deploy и rollback скрипты
+- name: sudoers tgdeploy только на deploy, rollback и notify-cicd скрипты
   ansible.builtin.copy:
     dest: /etc/sudoers.d/tgdeploy
-    content: "tgdeploy ALL=(ALL) NOPASSWD: /opt/tgops/deploy.sh, /opt/tgops/rollback.sh\n"
+    content: "tgdeploy ALL=(ALL) NOPASSWD: /opt/tgops/deploy.sh, /opt/tgops/rollback.sh, /opt/tgops/notify-cicd.sh\n"
     mode: "0440"
     validate: visudo -cf %s
   become: true

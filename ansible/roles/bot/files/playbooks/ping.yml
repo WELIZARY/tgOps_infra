@@ -1,0 +1,5 @@
+- hosts: demo
+  gather_facts: false
+  tasks:
+    - name: ping demo нод
+      ansible.builtin.ping:

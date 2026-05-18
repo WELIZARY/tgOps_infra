@@ -1,0 +1,11 @@
+# grafana сам подхватывает дашборды из /etc/grafana/dashboards
+apiVersion: 1
+providers:
+  - name: tgops
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards

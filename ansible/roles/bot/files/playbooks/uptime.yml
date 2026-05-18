@@ -1,0 +1,8 @@
+- hosts: demo
+  gather_facts: false
+  tasks:
+    - name: uptime
+      ansible.builtin.command: uptime
+      register: u
+    - ansible.builtin.debug:
+        var: u.stdout

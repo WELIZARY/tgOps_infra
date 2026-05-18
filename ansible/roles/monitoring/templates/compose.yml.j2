@@ -41,4 +41,6 @@ services:
     volumes:
       - /data/mon/grafana:/var/lib/grafana
       - /data/mon/grafana-datasources.yml:/etc/grafana/provisioning/datasources/ds.yml:ro
+      - /data/mon/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/tgops.yml:ro
+      - /data/mon/dashboards:/etc/grafana/dashboards:ro
     ports: ["3000:3000"]

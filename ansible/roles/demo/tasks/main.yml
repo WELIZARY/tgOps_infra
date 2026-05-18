@@ -7,7 +7,8 @@
     name: tgops
     shell: /bin/bash
     create_home: true
-    groups: docker
+    # docker для /docker, adm и systemd-journal чтобы /logs видел journald
+    groups: [docker, adm, systemd-journal]
     append: true
   become: true
 
@@ -26,4 +27,75 @@
     content: "tgops ALL=(ALL) NOPASSWD: ALL\n"
     mode: "0440"
     validate: visudo -cf %s
+  become: true
+
+# --- демо-наполнение, чтобы команды бота показывали данные ---
+
+- name: lynis для /scan host
+  ansible.builtin.apt:
+    name: lynis
+    state: present
+    update_cache: true
+  become: true
+
+- name: обёртка lynis в PATH (формат под греп бота)
+  ansible.builtin.copy:
+    src: lynis-wrapper.sh
+    dest: /usr/local/bin/lynis
+    mode: "0755"
+  become: true
+
+- name: cron-задачи tgops для /cron
+  ansible.builtin.cron:
+    name: "{{ item.name }}"
+    user: tgops
+    minute: "{{ item.minute }}"
+    hour: "{{ item.hour | default('*') }}"
+    job: "{{ item.job }}"
+  loop:
+    - { name: demo noop,    minute: "*/10", job: "/usr/bin/true" }
+    - { name: demo tmp,     minute: "30", hour: "2", job: "/usr/bin/find /tmp -type f -mtime +7 -delete" }
+    - { name: demo prune,   minute: "0",  hour: "4", job: "/usr/bin/docker image prune -f" }
+  become: true
+
+- name: каталог бэкапов для /backups
+  ansible.builtin.file:
+    path: /var/backups/demo
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: демо-файл бэкапа
+  ansible.builtin.shell: |
+    set -e
+    f="/var/backups/demo/backup_$(date +%Y-%m-%d).sql.gz"
+    [ -f "$f" ] || echo "demo backup $(date)" | gzip > "$f"
+  args:
+    creates: "/var/backups/demo/backup_{{ ansible_date_time.date | default('seed') }}.sql.gz"
+  become: true
+
+# docker-репо хранит много версий, откат плагина даёт реальный апдейт для /updates
+- name: старый docker-compose-plugin для /updates
+  ansible.builtin.shell: |
+    set -e
+    cur=$(dpkg-query -W -f='${Version}' docker-compose-plugin 2>/dev/null || true)
+    old=$(apt-cache madison docker-compose-plugin 2>/dev/null | awk '{print $3}' | sed -n 2p)
+    if [ -n "$old" ] && [ "$cur" != "$old" ]; then
+      apt-get install -y --allow-downgrades "docker-compose-plugin=$old" >/dev/null 2>&1
+      echo changed
+    fi
+  register: dcp
+  changed_when: "'changed' in dcp.stdout"
+  failed_when: false
+  become: true
+
+- name: уязвимые образы для /scan image
+  ansible.builtin.command: "docker pull {{ item }}"
+  loop:
+    - debian:10
+    - python:3.8-slim
+    - aquasec/trivy:latest
+  register: vimg
+  changed_when: "'Downloaded newer image' in vimg.stdout"
+  failed_when: false
   become: true

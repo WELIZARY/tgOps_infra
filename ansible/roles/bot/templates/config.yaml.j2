@@ -1,0 +1,83 @@
+# конфиг бота, редактируемый, лежит на bot-vm, монтируется в контейнер
+# секреты тут пустые, они прокидываются через deploy.sh через env 
+telegram:
+  mode: webhook
+  token: ''
+  initial_admin_id: {{ bot_admin_id | default(3174902) }}
+  webhook:
+    port: 8080
+    url: https://bot.{{ primary_domain | default('tgops.xyz') }}/webhook
+    secret: ''
+    alert_secret: ''
+    jenkins_secret: ''
+
+database:
+  primary:
+    host: ''
+    port: 5432
+    name: tgops
+    user: tgops
+    password: ''
+    ssl_mode: require
+    max_open_conns: 20
+    max_idle_conns: 5
+    conn_lifetime: 5m
+  replica:
+    host: ''
+    port: 5432
+    name: tgops
+    user: ''
+    password: ''
+    ssl_mode: disable
+
+cicd:
+  webhook_port: 8082
+  webhook_secret: ''
+  notify_chat_id: 0
+
+ssh:
+  connect_timeout: 10s
+  command_timeout: 30s
+  max_connections_per_host: 3
+  default_key_path: /home/tgops/.ssh/id_ed25519
+  servers: []
+
+monitoring:
+  interval: 60s
+  alert_cooldown: 10m
+  thresholds:
+    cpu_warning: 80
+    cpu_critical: 90
+    ram_warning: 75
+    ram_critical: 85
+    disk_warning: 80
+    disk_critical: 90
+
+health_checks:
+  interval: 60s
+  timeout: 10s
+  endpoints: []
+
+ssl:
+  check_interval: 24h
+  warn_days: [30, 14, 7, 1]
+  domains: []
+
+logs:
+  allowed_services: [nginx, docker, ssh, tgops]
+  max_lines: 100
+  max_message_chars: 4096
+
+docker:
+  host: unix:///var/run/docker.sock
+  timeout: 30s
+
+scheduler:
+  timezone: Europe/Moscow
+  daily_health_cron: 0 9 * * *
+  weekly_audit_cron: 0 10 * * 1
+
+logger:
+  level: info
+  format: json
+  output: stdout

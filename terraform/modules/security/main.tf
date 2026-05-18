@@ -23,6 +23,7 @@ locals {
     "roles/cloudsql.client",
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
+    "roles/artifactregistry.reader",
   ]
   jenkins_roles = [
     "roles/artifactregistry.reader",

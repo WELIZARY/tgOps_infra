@@ -1,5 +1,6 @@
 #!/bin/bash
 # blue/green деплой бота на одной vm, вызывается из jenkins
+# образ неизменяемый, конфиг (токен, секрет, host и пароль бд) подаётся через env
 set -euo pipefail
 
 IMAGE="${1:?нужен образ}"
@@ -17,25 +18,28 @@ else
 fi
 echo "активный $ACTIVE:$ACTIVE_PORT, поднимаю $NEW:$NEW_PORT"
 
-# конфиг из secret manager в момент деплоя, в образ не зашит
-gcloud secrets versions access latest --secret=tgops-telegram-token   > /tmp/tg_token
-gcloud secrets versions access latest --secret=tgops-telegram-webhook-secret > /tmp/tg_wh
+# секреты и параметры подключения из secret manager в момент деплоя
+TG_TOKEN=$(gcloud secrets versions access latest --secret=tgops-telegram-token)
+TG_WH=$(gcloud secrets versions access latest --secret=tgops-telegram-webhook-secret)
+DB_HOST=$(gcloud secrets versions access latest --secret=tgops-db-host)
+DB_PASS=$(gcloud secrets versions access latest --secret=tgops-db-password)
 
 docker pull "$IMAGE"
 docker rm -f "tgops-$NEW" 2>/dev/null || true
 docker run -d --name "tgops-$NEW" --restart unless-stopped \
   -p 127.0.0.1:$NEW_PORT:8080 \
-  -e TGOPS_TELEGRAM_TOKEN="$(cat /tmp/tg_token)" \
-  -e TGOPS_TELEGRAM_WEBHOOK_SECRET="$(cat /tmp/tg_wh)" \
-  -v /opt/tgops/config:/app/configs:ro \
+  -v /opt/tgops/config.yaml:/app/config.yaml:ro \
+  -e TGOPS_TELEGRAM_TOKEN="$TG_TOKEN" \
+  -e TGOPS_TELEGRAM_WEBHOOK_SECRET="$TG_WH" \
+  -e TGOPS_DATABASE_PRIMARY_HOST="$DB_HOST" \
+  -e TGOPS_DATABASE_PRIMARY_PASSWORD="$DB_PASS" \
   "$IMAGE"
 
-for i in $(seq 1 20); do
+for i in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:$NEW_PORT$HEALTH_PATH" >/dev/null; then ok=1; break; fi
   sleep 2
 done
-[ "${ok:-0}" = 1 ] || { echo "smoke не прошёл, откатываюсь..."; docker rm -f "tgops-$NEW"; exit 1; }
-
+[ "${ok:-0}" = 1 ] || { echo "smoke не прошёл, смотри docker logs tgops-$NEW"; docker logs --tail 50 "tgops-$NEW" || true; docker rm -f "tgops-$NEW"; exit 1; }
 
 sed -i "s/:$ACTIVE_PORT/:$NEW_PORT/" Caddyfile
 docker exec tgops-caddy caddy reload --config /etc/caddy/Caddyfile
@@ -43,4 +47,3 @@ docker exec tgops-caddy caddy reload --config /etc/caddy/Caddyfile
 echo "переключено на $NEW:$NEW_PORT, старый $ACTIVE гасим через 60с"
 ( sleep 60; docker rm -f "tgops-$ACTIVE" 2>/dev/null || true ) &
 echo "$ACTIVE" > "$DIR/.previous_color"
-rm -f /tmp/tg_token /tmp/tg_wh

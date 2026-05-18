@@ -101,3 +101,24 @@ resource "google_secret_manager_secret_iam_member" "bot" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.bot_sa_email}"
 }
+
+# приватный ip cloud sql, бот узнаёт его при деплое
+resource "google_secret_manager_secret" "db_host" {
+  project   = var.project_id
+  secret_id = "tgops-db-host"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "db_host" {
+  secret      = google_secret_manager_secret.db_host.id
+  secret_data = google_sql_database_instance.primary.private_ip_address
+}
+
+resource "google_secret_manager_secret_iam_member" "bot_db_host" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.db_host.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.bot_sa_email}"
+}

@@ -175,3 +175,20 @@ resource "google_secret_manager_secret_iam_member" "bot_ssh_key" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.bot.email}"
 }
+
+# креды jenkins в secret manager
+resource "google_secret_manager_secret" "jenkins_admin_password" {
+  project   = var.project_id
+  secret_id = "tgops-jenkins-admin-password"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "jenkins_build_token" {
+  project   = var.project_id
+  secret_id = "tgops-jenkins-build-token"
+  replication {
+    auto {}
+  }
+}

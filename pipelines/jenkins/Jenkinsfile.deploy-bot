@@ -4,8 +4,8 @@ pipeline {
   agent any
 
   parameters {
-    string(name: 'IMAGE_SHA', defaultValue: '', description: 'git sha образа из artifact registry')
-    booleanParam(name: 'SKIP_APPROVAL', defaultValue: false, description: 'пропустить ручное подтверждение')
+    string(name: 'IMAGE_SHA', defaultValue: 'latest', description: 'git sha образа или latest для ручного запуска')
+    booleanParam(name: 'SKIP_APPROVAL', defaultValue: true, description: 'пропустить ручное подтверждение')
   }
 
   environment {

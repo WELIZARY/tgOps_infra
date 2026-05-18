@@ -7,7 +7,7 @@ jenkins:
       allowsSignup: false
       users:
         - id: "{{ jenkins_admin_user | default('admin') }}"
-          password: "{{ jenkins_admin_password | default('changeme') }}"
+          password: "{{ lookup('pipe', 'gcloud secrets versions access latest --secret=tgops-jenkins-admin-password') }}"
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
@@ -21,10 +21,10 @@ jobs:
   - script: |
       pipelineJob('deploy-bot') {
         parameters {
-          stringParam('IMAGE_SHA', '', 'git sha образа')
+          stringParam('IMAGE_SHA', 'latest', 'git sha образа или latest')
           booleanParam('SKIP_APPROVAL', true, 'пропустить ручное подтверждение')
         }
-        authenticationToken('{{ jenkins_build_token | default("change-build-token") }}')
+        authenticationToken('{{ lookup("pipe", "gcloud secrets versions access latest --secret=tgops-jenkins-build-token") }}')
         definition {
           cpsScm {
             scm {

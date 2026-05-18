@@ -42,10 +42,21 @@ pipeline {
         sh '''
           set -e
           IMAGE="${REGISTRY}/tgops:${IMAGE_SHA}"
-          # ssh на bot vm через iap, запускаем готовый deploy.sh
-          gcloud compute ssh "${BOT_VM}" \
-            --project "${PROJECT}" --zone "${ZONE}" --tunnel-through-iap \
-            --command "sudo /opt/tgops/deploy.sh ${IMAGE}"
+          # ssh на bot vm через iap, deploy.sh уже на vm
+          # ретрай, если первый упал
+          n=0
+          until [ $n -ge 4 ]; do
+            if gcloud compute ssh "${BOT_VM}" \
+                 --project "${PROJECT}" --zone "${ZONE}" --tunnel-through-iap \
+                 --command "sudo /opt/tgops/deploy.sh ${IMAGE}"; then
+              exit 0
+            fi
+            n=$((n+1))
+            echo "попытка $n не удалась, ждём 20с (возможно os login ключ ещё распространяется)"
+            sleep 20
+          done
+          echo "деплой не удался"
+          exit 1
         '''
       }
     }

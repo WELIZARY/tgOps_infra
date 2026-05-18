@@ -18,13 +18,13 @@ unclassified:
 
 # пайплайны деплоя берём из репо tgOps_infra/pipelines
 jobs:
-  - script: >
+  - script: |
       pipelineJob('deploy-bot') {
         parameters {
           stringParam('IMAGE_SHA', '', 'git sha образа')
           booleanParam('SKIP_APPROVAL', true, 'пропустить ручное подтверждение')
         }
-        authToken('{{ jenkins_build_token | default("change-build-token") }}')
+        authenticationToken('{{ jenkins_build_token | default("change-build-token") }}')
         definition {
           cpsScm {
             scm {
@@ -37,7 +37,7 @@ jobs:
           }
         }
       }
-  - script: >
+  - script: |
       pipelineJob('rollback-bot') {
         definition {
           cpsScm {

@@ -1,18 +1,29 @@
 #!/bin/bash
-set -euo pipefail
+# откат бота: быстрый путь (живой предыдущий цвет) или перевыкат предыдущего образа
+set -uo pipefail
 DIR=/opt/tgops
 cd "$DIR"
 BLUE_PORT=18080
 GREEN_PORT=18081
 
 PREV="$(cat .previous_color 2>/dev/null || true)"
-[ -n "$PREV" ] || { echo "нет данных"; exit 1; }
 
-if [ "$PREV" = blue ]; then PORT=$BLUE_PORT; else PORT=$GREEN_PORT; fi
-docker start "tgops-$PREV" 2>/dev/null || { echo "предыдущий контейнер уже удалён, нужен redeploy конкретного sha"; exit 1; }
+# предыдущий цвет ещё не удалён, просто переключаем caddy назад
+if [ -n "$PREV" ] && docker start "tgops-$PREV" 2>/dev/null; then
+  if [ "$PREV" = blue ]; then PORT=$BLUE_PORT; else PORT=$GREEN_PORT; fi
+  CUR=$(grep -oE ':1808[01]' Caddyfile | head -1 | tr -d ':')
+  sed -i "s/:$CUR/:$PORT/" Caddyfile
+  docker restart tgops-caddy
+  echo "быстрый откат на $PREV:$PORT выполнен"
+  exit 0
+fi
 
-# текущий активный порт из Caddyfile
-CUR=$(grep -oE ':1808[01]' Caddyfile | head -1 | tr -d ':')
-sed -i "s/:$CUR/:$PORT/" Caddyfile
-docker exec tgops-caddy caddy reload --config /etc/caddy/Caddyfile
-echo "откат на $PREV:$PORT выполнен"
+# предыдущий цвет уже погашен, перевыкатываем предыдущий образ
+PREV_IMG="$(cat .previous_image 2>/dev/null || true)"
+if [ -n "$PREV_IMG" ]; then
+  echo "контейнер предыдущего цвета удалён, перевыкатываю предыдущий образ: $PREV_IMG"
+  exec /opt/tgops/deploy.sh "$PREV_IMG"
+fi
+
+echo "нет предыдущего образа для отката - запусти rollback-bot с параметром TARGET_SHA"
+exit 1

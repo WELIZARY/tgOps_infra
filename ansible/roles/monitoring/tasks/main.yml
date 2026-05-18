@@ -33,6 +33,7 @@
   loop:
     - { src: compose.yml.j2, dst: docker-compose.yml }
     - { src: prometheus.yml.j2, dst: prometheus.yml }
+    - { src: rules.yml.j2, dst: rules.yml }
     - { src: alertmanager.yml.j2, dst: alertmanager.yml }
     - { src: loki.yml.j2, dst: loki.yml }
     - { src: grafana-ds.yml.j2, dst: grafana-datasources.yml }

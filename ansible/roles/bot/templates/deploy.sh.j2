@@ -42,8 +42,15 @@ done
 [ "${ok:-0}" = 1 ] || { echo "smoke не прошёл, смотри docker logs tgops-$NEW"; docker logs --tail 50 "tgops-$NEW" || true; docker rm -f "tgops-$NEW"; exit 1; }
 
 sed -i "s/:$ACTIVE_PORT/:$NEW_PORT/" Caddyfile
-docker exec tgops-caddy caddy reload --config /etc/caddy/Caddyfile
+docker restart tgops-caddy
 
 echo "переключено на $NEW:$NEW_PORT, старый $ACTIVE гасим через 60с"
 ( sleep 60; docker rm -f "tgops-$ACTIVE" 2>/dev/null || true ) &
 echo "$ACTIVE" > "$DIR/.previous_color"
+
+# регистрация webhook url для бота
+if curl -fsS "https://api.telegram.org/bot${TG_TOKEN}/setWebhook?url=https://bot.tgops.xyz/webhook/${TG_WH}&secret_token=${TG_WH}" >/dev/null; then
+  echo "webhook у telegram зарегистрирован"
+else
+  echo "не удалось зарегистрировать webhook (проверь токен/сеть)"
+fi

@@ -16,6 +16,7 @@ resource "google_sql_database_instance" "primary" {
   deletion_protection = false
 
   settings {
+    edition           = "ENTERPRISE"
     tier              = var.tier
     availability_type = var.enable_ha ? "REGIONAL" : "ZONAL"
     disk_type         = "PD_SSD"
@@ -56,6 +57,7 @@ resource "google_sql_database_instance" "replica" {
   deletion_protection  = false
 
   settings {
+    edition           = "ENTERPRISE"
     tier              = var.tier
     availability_type = "ZONAL"
     disk_type         = "PD_SSD"

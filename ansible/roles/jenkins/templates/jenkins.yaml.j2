@@ -20,6 +20,11 @@ unclassified:
 jobs:
   - script: >
       pipelineJob('deploy-bot') {
+        parameters {
+          stringParam('IMAGE_SHA', '', 'git sha образа')
+          booleanParam('SKIP_APPROVAL', true, 'пропустить ручное подтверждение')
+        }
+        authToken('{{ jenkins_build_token | default("change-build-token") }}')
         definition {
           cpsScm {
             scm {

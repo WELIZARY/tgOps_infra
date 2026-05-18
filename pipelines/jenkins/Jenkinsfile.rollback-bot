@@ -21,14 +21,18 @@ pipeline {
       steps {
         sh '''
           set -e
+          KEY=$(mktemp)
+          trap 'rm -f "$KEY"' EXIT
+          gcloud secrets versions access latest --secret=tgops-deploy-ssh-key > "$KEY"
+          chmod 600 "$KEY"
           if [ -n "${TARGET_SHA}" ]; then
             CMD="sudo /opt/tgops/deploy.sh ${REGISTRY}/tgops:${TARGET_SHA}"
           else
             CMD="sudo /opt/tgops/rollback.sh"
           fi
-          gcloud compute ssh "${BOT_VM}" \
-            --project "${PROJECT}" --zone "${ZONE}" --tunnel-through-iap \
-            --command "${CMD}"
+          ssh -i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o ProxyCommand="gcloud compute start-iap-tunnel ${BOT_VM} 22 --listen-on-stdin --zone=${ZONE} --project=${PROJECT}" \
+            tgdeploy@${BOT_VM} "${CMD}"
         '''
       }
     }

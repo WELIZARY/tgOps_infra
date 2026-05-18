@@ -89,3 +89,51 @@ resource "google_secret_manager_secret_iam_member" "jenkins" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.jenkins.email}"
 }
+
+# управляемая пара ключей для деплоя jenkins на bot-vm (без os login)
+# приватный читает jenkins при деплое, публичный кладёт ansible в authorized_keys
+resource "tls_private_key" "deploy" {
+  algorithm = "ED25519"
+}
+
+resource "google_secret_manager_secret" "deploy_key" {
+  project   = var.project_id
+  secret_id = "tgops-deploy-ssh-key"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "deploy_key" {
+  secret      = google_secret_manager_secret.deploy_key.id
+  secret_data = tls_private_key.deploy.private_key_openssh
+}
+
+resource "google_secret_manager_secret" "deploy_pub" {
+  project   = var.project_id
+  secret_id = "tgops-deploy-ssh-pub"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "deploy_pub" {
+  secret      = google_secret_manager_secret.deploy_pub.id
+  secret_data = tls_private_key.deploy.public_key_openssh
+}
+
+# приватный ключ читает только jenkins
+resource "google_secret_manager_secret_iam_member" "jenkins_deploy_key" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.deploy_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.jenkins.email}"
+}
+
+# публичный ключ читает бот (ansible на bot-vm под bot-runtime)
+resource "google_secret_manager_secret_iam_member" "bot_deploy_pub" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.deploy_pub.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.bot.email}"
+}

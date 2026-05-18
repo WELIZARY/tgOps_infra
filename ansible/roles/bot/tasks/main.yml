@@ -68,6 +68,36 @@
     mode: "0755"
   become: true
 
+# отдельный пользователь под деплой из jenkins (ssh ключ jenkins, без os login)
+- name: пользователь tgdeploy
+  ansible.builtin.user:
+    name: tgdeploy
+    shell: /bin/bash
+    create_home: true
+  become: true
+
+- name: достать публичный deploy-ключ из secret manager
+  ansible.builtin.command: gcloud secrets versions access latest --secret=tgops-deploy-ssh-pub
+  register: deploy_pub
+  changed_when: false
+  become: true
+
+- name: положить публичный deploy-ключ в authorized_keys tgdeploy
+  ansible.posix.authorized_key:
+    user: tgdeploy
+    state: present
+    key: "{{ deploy_pub.stdout }}"
+    exclusive: true
+  become: true
+
+- name: sudoers tgdeploy только на deploy и rollback скрипты
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/tgdeploy
+    content: "tgdeploy ALL=(ALL) NOPASSWD: /opt/tgops/deploy.sh, /opt/tgops/rollback.sh\n"
+    mode: "0440"
+    validate: visudo -cf %s
+  become: true
+
 - name: поднять caddy
   ansible.builtin.command: docker compose -f docker-compose.caddy.yml up -d
   args:
